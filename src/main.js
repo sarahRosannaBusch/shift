@@ -68,6 +68,7 @@ renderer.setAnimationLoop(() => {
       player.reset();
       controls.reset();
       isGrounded = true;
+      isAngledView = false;
     }
 
     if (controls.hasJumpRequest() && isGrounded) {
