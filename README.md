@@ -1,6 +1,6 @@
 # shift
 
-Three.js game project.
+Three.js game project using Cannon-es for rigid-body physics.
 
 ## Getting started
 
