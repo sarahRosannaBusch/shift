@@ -19,8 +19,8 @@ const random = () => {
 };
 for (let i = 0; i < 400; i += 1) {
   starPositions.push(
-    -30 + random() * 70,
-    -18 + random() * 36,
+    -5 + random() * 48,
+    -3 + random() * 16,
     -8 - random() * 4,
   );
   starSizes.push(1 + random() * 2);
@@ -98,10 +98,13 @@ resize();
 const fixedTimeStep = 1 / 60;
 const moveForce = 5;
 const brakeForce = 16;
+const maxSpeed = 3;
 const jumpImpulse = 4.5;
+const coyoteTime = 0.25;
 const clock = new THREE.Clock();
 let accumulator = 0;
 let isGrounded = true;
+let coyoteTimeRemaining = coyoteTime;
 
 renderer.setAnimationLoop(() => {
   const delta = Math.min(clock.getDelta(), 0.1);
@@ -112,14 +115,20 @@ renderer.setAnimationLoop(() => {
       player.reset();
       controls.reset();
       isGrounded = true;
+      coyoteTimeRemaining = coyoteTime;
       isAngledView = false;
     }
 
-    if (controls.hasJumpRequest() && isGrounded) {
-      player.body.applyImpulse(
-        new CANNON.Vec3(0, jumpImpulse * player.body.mass, 0),
-      );
-      isGrounded = false;
+    let jumpedThisStep = false;
+    if (controls.hasJumpRequest()) {
+      if (isGrounded || coyoteTimeRemaining > 0) {
+        player.body.applyImpulse(
+          new CANNON.Vec3(0, jumpImpulse * player.body.mass, 0),
+        );
+        isGrounded = false;
+        coyoteTimeRemaining = 0;
+        jumpedThisStep = true;
+      }
       controls.clearJumpRequest();
     }
 
@@ -137,13 +146,23 @@ renderer.setAnimationLoop(() => {
         new CANNON.Vec3(0, 0, 0),
       );
     }
-
     world.step(fixedTimeStep);
     accumulator -= fixedTimeStep;
-    isGrounded = world.contacts.some((contact) =>
-      (contact.bi === player.body || contact.bj === player.body) &&
-      Math.abs(contact.ni.y) > 0.5
+    player.body.velocity.x = THREE.MathUtils.clamp(
+      player.body.velocity.x,
+      -maxSpeed,
+      maxSpeed,
     );
+    isGrounded = world.contacts.some((contact) =>
+      contact.bj === player.body
+        ? contact.ni.y > 0.5
+        : contact.bi === player.body && contact.ni.y < -0.5
+    );
+    if (isGrounded && !jumpedThisStep) {
+      coyoteTimeRemaining = coyoteTime;
+    } else if (!isGrounded) {
+      coyoteTimeRemaining = Math.max(0, coyoteTimeRemaining - fixedTimeStep);
+    }
   }
 
   player.syncVisual();

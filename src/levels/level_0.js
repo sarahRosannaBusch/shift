@@ -1,19 +1,19 @@
 export const level_0 = {
   spawn: { x: 0, y: 0.575, z: 0 },
   platforms: [
-    { left: -2.25, top: 0.125, length: 4.5 },
-    { left: 2.95, top: 0.95, length: 2.5 },
-    {
-      left: 5.45,
-      top: 0.95,
-      length: Math.hypot(4.1, 1.6),
-      angle: Math.atan2(1.6, 4.1),
-    },
-    { left: 9.55, top: 2.55, length: 2.5 },
-    
-    // bottom row
-    { left: -14.6, top: -3.5, length: 1.5, angle: Math.PI / 2 },
-    { left: -14.6, top: -3.5, length: 40 },
-    { left: 25.15, top: -3.5, length: 1.5, angle: Math.PI / 2 },
+    { left: -1, top: 0, length: 40 },
+    { left: -1, top: 10, length: 40 },
+    { left: -1, top: 0, length: 10, angle: Math.PI / 2 },
+    { left: 38.75, top: 0, length: 10, angle: Math.PI / 2 },
+    { left: 2, top: 0.9, length: 2.5 },
+    { left: 5.8, top: 1.8, length: 2.5 },
+    { left: 9.6, top: 2.7, length: 2.5 },
+    { left: 13.4, top: 3.6, length: 2.5 },
+    { left: 17.2, top: 4.5, length: 2.5 },
+    { left: 21, top: 5.4, length: 2.5 },
+    { left: 24.8, top: 6.3, length: 2.5 },
+    { left: 28.6, top: 7.2, length: 2.5 },
+    { left: 32.4, top: 8.1, length: 2.5 },
+    { left: 36.2, top: 8.8, length: 2.5 },
   ],
 };
