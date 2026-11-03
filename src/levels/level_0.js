@@ -13,12 +13,7 @@ export const level_0 = {
     
     // bottom row
     { left: -14.6, top: -3.5, length: 1.5, angle: Math.PI / 2 },
-    {
-      left: -14.6,
-      top: -3.5,
-      length: 40,
-      markers: { spacing: 2, z: 1.18 },
-    },
+    { left: -14.6, top: -3.5, length: 40 },
     { left: 25.15, top: -3.5, length: 1.5, angle: Math.PI / 2 },
   ],
 };
