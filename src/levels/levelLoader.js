@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { Platform } from '../components/Platform.js';
+import { ShiftButton } from '../components/ShiftButton.js';
 import { level_0 } from './level_0.js';
 
 const levels = {
@@ -16,8 +17,10 @@ export function loadLevel(name, context) {
     configs.map((config) => new Component({ ...context, ...config }));
 
   createComponents(Platform, level.platforms);
+  const shiftButtons = createComponents(ShiftButton, level.shiftButtons);
 
   return {
     spawn: new THREE.Vector3(level.spawn.x, level.spawn.y, level.spawn.z),
+    shiftButtons,
   };
 }

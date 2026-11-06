@@ -19,7 +19,13 @@ and barriers are platforms too; set `angle` in radians to rotate one. `length`
 runs along the platform, `width` runs across it, and `thickness` is vertical.
 The `Platform` component defaults to a width of `2.5` and thickness of `0.25`;
 override these only when a platform needs different dimensions. The level loader
-creates each platform in array order.
+creates each platform in array order. Add button configurations to a level's
+`shiftButtons` array; each uses `left` and `bottom` for the base's bottom-left
+corner. Button dimensions and colors are fixed in the `ShiftButton` component.
+Button colors can be overridden with the optional `baseColor` and `plungerColor`
+properties. The plunger is dynamic, moves vertically when pressed, and slightly
+rebounds when released. Once pressed to the bottom, it sets `wasPressed`, which
+triggers the camera's transition to the angled view.
 
 ## Production build
 

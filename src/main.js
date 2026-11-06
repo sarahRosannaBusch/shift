@@ -21,7 +21,7 @@ for (let i = 0; i < 400; i += 1) {
   starPositions.push(
     -5 + random() * 48,
     -3 + random() * 16,
-    -8 - random() * 4,
+    -8 + random() * 16,
   );
   starSizes.push(1 + random() * 2);
 }
@@ -68,7 +68,13 @@ const sideView = new THREE.Vector3(0, 0, 6);
 const angledView = new THREE.Vector3(4, 3.5, 6);
 const perspectiveCamera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
 const sideCamera = new THREE.OrthographicCamera(-2.5, 2.5, 2.5, -2.5, 0.1, 100);
+const transitionCamera = new THREE.Camera();
 let isAngledView = false;
+let viewBlend = 0;
+let transitionStart = 0;
+let transitionTarget = 0;
+let transitionElapsed = 0;
+const transitionDuration = 2;
 
 window.addEventListener('keydown', (event) => {
   if (event.key !== 'Shift' || event.repeat) return;
@@ -112,11 +118,8 @@ renderer.setAnimationLoop(() => {
 
   while (accumulator >= fixedTimeStep) {
     if (controls.hasRestartRequest()) {
-      player.reset();
-      controls.reset();
-      isGrounded = true;
-      coyoteTimeRemaining = coyoteTime;
-      isAngledView = false;
+      window.location.reload();
+      return;
     }
 
     let jumpedThisStep = false;
@@ -148,6 +151,9 @@ renderer.setAnimationLoop(() => {
     }
     world.step(fixedTimeStep);
     accumulator -= fixedTimeStep;
+    if (level.shiftButtons.some((button) => button.wasPressed)) {
+      isAngledView = true;
+    }
     player.body.velocity.x = THREE.MathUtils.clamp(
       player.body.velocity.x,
       -maxSpeed,
@@ -166,8 +172,42 @@ renderer.setAnimationLoop(() => {
   }
 
   player.syncVisual();
-  const camera = isAngledView ? perspectiveCamera : sideCamera;
-  camera.position.copy(isAngledView ? angledView : sideView).add(player.mesh.position);
-  camera.lookAt(player.mesh.position);
-  renderer.render(scene, camera);
+  const requestedView = Number(isAngledView);
+  if (requestedView !== transitionTarget) {
+    transitionStart = viewBlend;
+    transitionTarget = requestedView;
+    transitionElapsed = 0;
+  }
+  transitionElapsed = Math.min(transitionElapsed + delta, transitionDuration);
+  const progress = transitionElapsed / transitionDuration;
+  const easedProgress = progress * progress * (2 - progress);
+  viewBlend = THREE.MathUtils.lerp(transitionStart, transitionTarget, easedProgress);
+  sideCamera.position.copy(sideView).add(player.mesh.position);
+  sideCamera.lookAt(player.mesh.position);
+  perspectiveCamera.position.copy(angledView).add(player.mesh.position);
+  perspectiveCamera.lookAt(player.mesh.position);
+
+  transitionCamera.position.lerpVectors(
+    sideCamera.position,
+    perspectiveCamera.position,
+    viewBlend,
+  );
+  transitionCamera.quaternion.slerpQuaternions(
+    sideCamera.quaternion,
+    perspectiveCamera.quaternion,
+    viewBlend,
+  );
+  transitionCamera.updateMatrixWorld();
+  for (let i = 0; i < 16; i += 1) {
+    transitionCamera.projectionMatrix.elements[i] =
+      THREE.MathUtils.lerp(
+        sideCamera.projectionMatrix.elements[i],
+        perspectiveCamera.projectionMatrix.elements[i],
+        viewBlend,
+      );
+  }
+  transitionCamera.projectionMatrixInverse
+    .copy(transitionCamera.projectionMatrix)
+    .invert();
+  renderer.render(scene, transitionCamera);
 });
