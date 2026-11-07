@@ -5,7 +5,7 @@ export function createPhysicsWorld() {
     gravity: new CANNON.Vec3(0, -7, 0),
   });
   world.solver.iterations = 10;
-  world.defaultContactMaterial.friction = 0.7;
+  world.defaultContactMaterial.friction = 0;
   world.defaultContactMaterial.restitution = 0;
   return world;
 }

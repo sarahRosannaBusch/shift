@@ -2,6 +2,7 @@ export const level_0 = {
   spawn: { x: 0, y: 0.575, z: 0 },
   shiftButtons: [
     { left: 9, bottom: 0 },
+    { left: 14.2, bottom: 3.9 },
   ],
   platforms: [
     // outer box
