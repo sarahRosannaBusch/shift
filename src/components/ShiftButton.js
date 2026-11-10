@@ -16,9 +16,15 @@ export class ShiftButton {
     world,
     left,
     bottom,
-    baseColor = '#8b7bff',
-    plungerColor = '#ffb454',
+    action = 'shift',
+    baseColor,
+    plungerColor,
   }) {
+    const defaultColors = action === 'complete'
+      ? { base: '#45b877', plunger: '#b9f27c' }
+      : { base: '#8b7bff', plunger: '#ffb454' };
+    baseColor ??= defaultColors.base;
+    plungerColor ??= defaultColors.plunger;
     const z = 0;
     const centerX = left + BASE_SIZE / 2;
     const baseTop = bottom + BASE_HEIGHT;
@@ -61,6 +67,7 @@ export class ShiftButton {
     this.plungerBody.linearFactor.y = 1;
     world.addBody(this.plungerBody);
     this.playerOnTop = false;
+    this.action = action;
     this.returnPosition = plungerY;
     this.wasPressed = false;
     this.applyPlungerForces = () => {

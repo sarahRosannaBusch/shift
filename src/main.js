@@ -63,6 +63,8 @@ const world = createPhysicsWorld();
 let level;
 let player;
 let currentLevelName;
+let currentLevelIndex;
+let unlockedLevelIndex = 0;
 const controls = new GameControls();
 
 const sideView = new THREE.Vector3(0, 0, 6);
@@ -112,13 +114,13 @@ resize();
 
 const selectionGroup = new THREE.Group();
 const constellationPoints = [
-  new THREE.Vector3(0, 1.5, 0),
-  new THREE.Vector3(-0.9, 0.6, 0),
-  new THREE.Vector3(-0.3, 0.6, 0),
-  new THREE.Vector3(-0.3, -1.2, 0),
-  new THREE.Vector3(0.3, -1.2, 0),
-  new THREE.Vector3(0.3, 0.6, 0),
-  new THREE.Vector3(0.9, 0.6, 0),
+  new THREE.Vector3(0, 1.125, 0),
+  new THREE.Vector3(-1.125, 0, 0),
+  new THREE.Vector3(-0.6, 0, 0),
+  new THREE.Vector3(-0.6, -1.2, 0),
+  new THREE.Vector3(0.6, -1.2, 0),
+  new THREE.Vector3(0.6, 0, 0),
+  new THREE.Vector3(1.125, 0, 0),
 ];
 const constellationLinePositions = [];
 for (let i = 0; i < constellationPoints.length; i += 1) {
@@ -140,7 +142,11 @@ const lines = new THREE.LineSegments(
   ),
   constellationMaterial,
 );
+lines.geometry.setDrawRange(0, 0);
 selectionGroup.add(lines);
+let drawingLineIndex = -1;
+let drawingLineElapsed = 0;
+const drawingLineDuration = 0.6;
 
 const levelStars = constellationPoints.map((position, index) => {
   const geometry = new THREE.BufferGeometry();
@@ -161,6 +167,7 @@ const levelStars = constellationPoints.map((position, index) => {
   };
   const star = new THREE.Points(geometry, material);
   star.userData.levelName = `level_${index}`;
+  star.userData.levelIndex = index;
   selectionGroup.add(star);
 
   return star;
@@ -180,7 +187,10 @@ renderer.domElement.addEventListener('pointermove', (event) => {
   pointer.y = -((event.clientY - bounds.top) / bounds.height) * 2 + 1;
   raycaster.setFromCamera(pointer, selectionCamera);
   renderer.domElement.style.cursor =
-    raycaster.intersectObjects(levelStars).length > 0 ? 'pointer' : '';
+    raycaster.intersectObjects(levelStars)
+      .some(({ object }) => object.userData.levelIndex <= unlockedLevelIndex)
+      ? 'pointer'
+      : '';
 });
 renderer.domElement.addEventListener('click', (event) => {
   if (player) return;
@@ -188,11 +198,13 @@ renderer.domElement.addEventListener('click', (event) => {
   pointer.x = ((event.clientX - bounds.left) / bounds.width) * 2 - 1;
   pointer.y = -((event.clientY - bounds.top) / bounds.height) * 2 + 1;
   raycaster.setFromCamera(pointer, selectionCamera);
-  const [clickedStar] = raycaster.intersectObjects(levelStars);
+  const clickedStar = raycaster.intersectObjects(levelStars)
+    .find(({ object }) => object.userData.levelIndex <= unlockedLevelIndex);
   if (!clickedStar) return;
 
   level = loadLevel(clickedStar.object.userData.levelName, { scene, world });
   currentLevelName = clickedStar.object.userData.levelName;
+  currentLevelIndex = clickedStar.object.userData.levelIndex;
   player = createPlayer({ scene, world, position: level.spawn });
   scene.remove(selectionGroup);
   renderer.domElement.style.cursor = '';
@@ -236,8 +248,38 @@ function resetView() {
   coyoteTimeRemaining = coyoteTime;
 }
 
+function returnToMenu() {
+  controls.reset();
+  level.dispose();
+  removePlayer();
+  level = undefined;
+  currentLevelName = undefined;
+  scene.add(selectionGroup);
+  selectionCamera.position.set(0, 0, 6);
+  selectionCamera.zoom = 1;
+  selectionCamera.lookAt(0, 0, 0);
+  selectionCamera.updateProjectionMatrix();
+  resetView();
+}
+
 renderer.setAnimationLoop(() => {
   if (!player) {
+    if (drawingLineIndex >= 0) {
+      drawingLineElapsed = Math.min(
+        drawingLineElapsed + Math.min(clock.getDelta(), 0.1),
+        drawingLineDuration,
+      );
+      const progress = drawingLineElapsed / drawingLineDuration;
+      const start = constellationPoints[drawingLineIndex];
+      const end = constellationPoints[(drawingLineIndex + 1) % constellationPoints.length];
+      const endpoint = start.clone().lerp(end, progress);
+      const endpointOffset = drawingLineIndex * 6 + 3;
+      linePositions[endpointOffset] = endpoint.x;
+      linePositions[endpointOffset + 1] = endpoint.y;
+      linePositions[endpointOffset + 2] = endpoint.z;
+      lines.geometry.attributes.position.needsUpdate = true;
+      if (progress === 1) drawingLineIndex = -1;
+    }
     renderer.render(scene, selectionCamera);
     return;
   }
@@ -257,17 +299,7 @@ renderer.setAnimationLoop(() => {
     }
 
     if (controls.hasMenuRequest()) {
-      controls.reset();
-      level.dispose();
-      removePlayer();
-      level = undefined;
-      currentLevelName = undefined;
-      scene.add(selectionGroup);
-      selectionCamera.position.set(0, 0, 6);
-      selectionCamera.zoom = 1;
-      selectionCamera.lookAt(0, 0, 0);
-      selectionCamera.updateProjectionMatrix();
-      resetView();
+      returnToMenu();
       return;
     }
 
@@ -300,7 +332,27 @@ renderer.setAnimationLoop(() => {
     }
     world.step(fixedTimeStep);
     accumulator -= fixedTimeStep;
-    if (level.shiftButtons.some((button) => button.wasPressed)) {
+    if (level.shiftButtons.some((button) => button.action === 'complete' && button.wasPressed)) {
+      if (currentLevelIndex === unlockedLevelIndex) {
+        drawingLineIndex = unlockedLevelIndex;
+        drawingLineElapsed = 0;
+        const start = constellationPoints[drawingLineIndex];
+        const endpointOffset = drawingLineIndex * 6 + 3;
+        linePositions[endpointOffset] = start.x;
+        linePositions[endpointOffset + 1] = start.y;
+        linePositions[endpointOffset + 2] = start.z;
+        lines.geometry.attributes.position.needsUpdate = true;
+        if (unlockedLevelIndex < levelStars.length - 1) {
+          unlockedLevelIndex += 1;
+          lines.geometry.setDrawRange(0, unlockedLevelIndex * 2);
+        } else {
+          lines.geometry.setDrawRange(0, levelStars.length * 2);
+        }
+      }
+      returnToMenu();
+      return;
+    }
+    if (level.shiftButtons.some((button) => button.action === 'shift' && button.wasPressed)) {
       isAngledView = true;
     }
     player.body.velocity.x = THREE.MathUtils.clamp(
