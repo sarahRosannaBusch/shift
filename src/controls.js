@@ -10,6 +10,7 @@ export class GameControls {
     this.movementKeys = new Set();
     this.jumpRequested = false;
     this.restartRequested = false;
+    this.menuRequested = false;
 
     window.addEventListener('keydown', (event) => {
       const key = normalizeKey(event.key);
@@ -32,6 +33,11 @@ export class GameControls {
         event.preventDefault();
         if (!event.repeat) this.restartRequested = true;
       }
+
+      if (key === 't') {
+        event.preventDefault();
+        if (!event.repeat) this.menuRequested = true;
+      }
     });
 
     window.addEventListener('keyup', (event) => {
@@ -42,6 +48,7 @@ export class GameControls {
       this.movementKeys.clear();
       this.jumpRequested = false;
       this.restartRequested = false;
+      this.menuRequested = false;
     });
   }
 
@@ -70,9 +77,14 @@ export class GameControls {
     this.restartRequested = false;
   }
 
+  hasMenuRequest() {
+    return this.menuRequested;
+  }
+
   reset() {
     this.movementKeys.clear();
     this.jumpRequested = false;
     this.restartRequested = false;
+    this.menuRequested = false;
   }
 }

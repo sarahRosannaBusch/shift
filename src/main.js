@@ -60,15 +60,19 @@ keyLight.position.set(-3, 6, 4);
 scene.add(keyLight);
 
 const world = createPhysicsWorld();
-const level = loadLevel('level_0', { scene, world });
-const player = createPlayer({ scene, world, position: level.spawn });
+let level;
+let player;
+let currentLevelName;
 const controls = new GameControls();
 
 const sideView = new THREE.Vector3(0, 0, 6);
 const angledView = new THREE.Vector3(4, 3.5, 6);
 const perspectiveCamera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
 const sideCamera = new THREE.OrthographicCamera(-2.5, 2.5, 2.5, -2.5, 0.1, 100);
+const selectionCamera = new THREE.OrthographicCamera(-2.5, 2.5, 2.5, -2.5, 0.1, 100);
 const transitionCamera = new THREE.Camera();
+selectionCamera.position.set(0, 0, 6);
+selectionCamera.lookAt(0, 0, 0);
 let isAngledView = false;
 let viewBlend = 0;
 let transitionStart = 0;
@@ -92,6 +96,11 @@ function resize() {
   sideCamera.top = 2.5;
   sideCamera.bottom = -2.5;
   sideCamera.updateProjectionMatrix();
+  selectionCamera.left = sideCamera.left;
+  selectionCamera.right = sideCamera.right;
+  selectionCamera.top = sideCamera.top;
+  selectionCamera.bottom = sideCamera.bottom;
+  selectionCamera.updateProjectionMatrix();
   renderer.setSize(width, height);
 }
 
@@ -100,6 +109,94 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 container.appendChild(renderer.domElement);
 window.addEventListener('resize', resize);
 resize();
+
+const selectionGroup = new THREE.Group();
+const constellationPoints = [
+  new THREE.Vector3(0, 1.5, 0),
+  new THREE.Vector3(-0.9, 0.6, 0),
+  new THREE.Vector3(-0.3, 0.6, 0),
+  new THREE.Vector3(-0.3, -1.2, 0),
+  new THREE.Vector3(0.3, -1.2, 0),
+  new THREE.Vector3(0.3, 0.6, 0),
+  new THREE.Vector3(0.9, 0.6, 0),
+];
+const constellationLinePositions = [];
+for (let i = 0; i < constellationPoints.length; i += 1) {
+  const start = constellationPoints[i];
+  const end = constellationPoints[(i + 1) % constellationPoints.length];
+  constellationLinePositions.push(...start.toArray(), ...end.toArray());
+}
+const constellationLines = new THREE.BufferGeometry();
+const linePositions = new Float32Array(constellationLinePositions);
+const constellationMaterial = new THREE.LineBasicMaterial({
+  color: '#806fd8',
+  transparent: true,
+  opacity: 0.75,
+});
+const lines = new THREE.LineSegments(
+  constellationLines.setAttribute(
+    'position',
+    new THREE.BufferAttribute(linePositions, 3),
+  ),
+  constellationMaterial,
+);
+selectionGroup.add(lines);
+
+const levelStars = constellationPoints.map((position, index) => {
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute(
+    'position',
+    new THREE.Float32BufferAttribute(position.toArray(), 3),
+  );
+  const material = new THREE.PointsMaterial({
+    color: '#ffffff',
+    size: 5,
+    sizeAttenuation: false,
+  });
+  material.onBeforeCompile = (shader) => {
+    shader.fragmentShader = shader.fragmentShader.replace(
+      'void main() {',
+      'void main() {\n\tif (length(gl_PointCoord - vec2(0.5)) > 0.5) discard;',
+    );
+  };
+  const star = new THREE.Points(geometry, material);
+  star.userData.levelName = `level_${index}`;
+  selectionGroup.add(star);
+
+  return star;
+});
+scene.add(selectionGroup);
+
+const raycaster = new THREE.Raycaster();
+raycaster.params.Points.threshold = 0.2;
+const pointer = new THREE.Vector2();
+renderer.domElement.addEventListener('pointermove', (event) => {
+  if (player) {
+    renderer.domElement.style.cursor = '';
+    return;
+  }
+  const bounds = renderer.domElement.getBoundingClientRect();
+  pointer.x = ((event.clientX - bounds.left) / bounds.width) * 2 - 1;
+  pointer.y = -((event.clientY - bounds.top) / bounds.height) * 2 + 1;
+  raycaster.setFromCamera(pointer, selectionCamera);
+  renderer.domElement.style.cursor =
+    raycaster.intersectObjects(levelStars).length > 0 ? 'pointer' : '';
+});
+renderer.domElement.addEventListener('click', (event) => {
+  if (player) return;
+  const bounds = renderer.domElement.getBoundingClientRect();
+  pointer.x = ((event.clientX - bounds.left) / bounds.width) * 2 - 1;
+  pointer.y = -((event.clientY - bounds.top) / bounds.height) * 2 + 1;
+  raycaster.setFromCamera(pointer, selectionCamera);
+  const [clickedStar] = raycaster.intersectObjects(levelStars);
+  if (!clickedStar) return;
+
+  level = loadLevel(clickedStar.object.userData.levelName, { scene, world });
+  currentLevelName = clickedStar.object.userData.levelName;
+  player = createPlayer({ scene, world, position: level.spawn });
+  scene.remove(selectionGroup);
+  renderer.domElement.style.cursor = '';
+});
 
 const fixedTimeStep = 1 / 60;
 const moveForce = 5;
@@ -112,13 +209,65 @@ let accumulator = 0;
 let isGrounded = true;
 let coyoteTimeRemaining = coyoteTime;
 
+function removePlayer() {
+  world.removeBody(player.body);
+  scene.remove(player.mesh);
+  player.mesh.traverse((object) => {
+    if (object.geometry) object.geometry.dispose();
+    if (object.material) {
+      if (Array.isArray(object.material)) {
+        object.material.forEach((material) => material.dispose());
+      } else {
+        object.material.dispose();
+      }
+    }
+  });
+  player = undefined;
+}
+
+function resetView() {
+  isAngledView = false;
+  viewBlend = 0;
+  transitionStart = 0;
+  transitionTarget = 0;
+  transitionElapsed = 0;
+  accumulator = 0;
+  isGrounded = true;
+  coyoteTimeRemaining = coyoteTime;
+}
+
 renderer.setAnimationLoop(() => {
+  if (!player) {
+    renderer.render(scene, selectionCamera);
+    return;
+  }
+
   const delta = Math.min(clock.getDelta(), 0.1);
   accumulator += delta;
 
   while (accumulator >= fixedTimeStep) {
     if (controls.hasRestartRequest()) {
-      window.location.reload();
+      controls.reset();
+      level.dispose();
+      removePlayer();
+      level = loadLevel(currentLevelName, { scene, world });
+      player = createPlayer({ scene, world, position: level.spawn });
+      resetView();
+      return;
+    }
+
+    if (controls.hasMenuRequest()) {
+      controls.reset();
+      level.dispose();
+      removePlayer();
+      level = undefined;
+      currentLevelName = undefined;
+      scene.add(selectionGroup);
+      selectionCamera.position.set(0, 0, 6);
+      selectionCamera.zoom = 1;
+      selectionCamera.lookAt(0, 0, 0);
+      selectionCamera.updateProjectionMatrix();
+      resetView();
       return;
     }
 
