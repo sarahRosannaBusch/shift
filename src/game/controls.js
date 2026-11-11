@@ -10,6 +10,7 @@ export class GameControls {
     this.restartRequested = false;
     this.menuRequested = false;
     this.devViewToggleRequested = false;
+    this.enterRequested = false;
 
     window.addEventListener('keydown', (event) => this.handleKeyDown(event));
     window.addEventListener('keyup', (event) => this.handleKeyUp(event));
@@ -42,6 +43,10 @@ export class GameControls {
       case 't':
         event.preventDefault();
         if (!event.repeat) this.menuRequested = true;
+        break;
+      case 'enter':
+        event.preventDefault();
+        if (!event.repeat) this.enterRequested = true;
         break;
       case 'shift':
         if (this.isDev && !event.repeat) {
@@ -86,6 +91,14 @@ export class GameControls {
     return this.menuRequested;
   }
 
+  hasEnterRequest() {
+    return this.enterRequested;
+  }
+
+  clearEnterRequest() {
+    this.enterRequested = false;
+  }
+
   hasDevViewToggleRequest() {
     return this.devViewToggleRequested;
   }
@@ -100,5 +113,6 @@ export class GameControls {
     this.restartRequested = false;
     this.menuRequested = false;
     this.devViewToggleRequested = false;
+    this.enterRequested = false;
   }
 }

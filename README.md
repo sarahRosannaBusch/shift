@@ -25,9 +25,13 @@ corner. Button dimensions and colors are fixed in the `ShiftButton` component.
 Button colors can be overridden with the optional `baseColor` and `plungerColor`
 properties. The plunger is dynamic, moves vertically when pressed, and slightly
 rebounds when released. Once pressed to the bottom, it sets `wasPressed`, which
-triggers the camera's transition to the angled view. During development, press
-Shift to toggle the camera view while designing levels; this shortcut is not
-available in production.
+triggers the camera's transition to the angled view. Press Enter to launch the
+level marked by the pulsing glow. Hovering over an unlocked level previews it;
+moving the pointer away restores the glow to the newly unlocked level. Completing
+a level moves the glow to the newly unlocked level; completing the final level
+turns it off. Clicking an unlocked level still launches it directly. During
+development, press Shift to toggle the camera view while designing levels; this
+shortcut is not available in production.
 
 ## Production build
 

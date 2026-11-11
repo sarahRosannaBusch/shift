@@ -10,6 +10,7 @@ const CONSTELLATION_POINTS = [
   new THREE.Vector3(1.125, 0, 0),
 ];
 const LINE_DRAW_DURATION = 0.6;
+const SELECTION_GLOW_PERIOD = 1.8;
 
 export class LevelSelection {
   constructor({ scene, camera, domElement, onSelect }) {
@@ -18,26 +19,29 @@ export class LevelSelection {
     this.domElement = domElement;
     this.onSelect = onSelect;
     this.unlockedLevelIndex = 0;
+    this.selectedLevelIndex = 0;
+    this.hoveredLevelIndex = undefined;
     this.drawingLineIndex = -1;
     this.drawingLineElapsed = 0;
+    this.glowElapsed = 0;
+    this.isGlowActive = true;
     this.isVisible = true;
 
     this.group = new THREE.Group();
     this.linePositions = this.createConstellationLines();
+    this.selectionGlow = this.createSelectionGlow();
     this.levelStars = this.createLevelStars();
     this.raycaster = new THREE.Raycaster();
     this.raycaster.params.Points.threshold = 0.2;
     this.pointer = new THREE.Vector2();
 
     this.handlePointerMove = (event) => this.updateCursor(event);
+    this.handlePointerLeave = () => this.clearHover();
     this.handleClick = (event) => this.selectLevel(event);
     this.domElement.addEventListener('pointermove', this.handlePointerMove);
+    this.domElement.addEventListener('pointerleave', this.handlePointerLeave);
     this.domElement.addEventListener('click', this.handleClick);
     this.scene.add(this.group);
-  }
-
-  get isAnimatingUnlock() {
-    return this.drawingLineIndex >= 0;
   }
 
   createConstellationLines() {
@@ -68,6 +72,44 @@ export class LevelSelection {
     return linePositions;
   }
 
+  createSelectionGlow() {
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute(
+      'position',
+      new THREE.Float32BufferAttribute([0, 0, 0], 3),
+    );
+    const material = new THREE.ShaderMaterial({
+      uniforms: {
+        color: { value: new THREE.Color('#806fd8') },
+        opacity: { value: 0.4 },
+        pointSize: { value: 32 },
+      },
+      vertexShader: `
+        uniform float pointSize;
+        void main() {
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          gl_PointSize = pointSize;
+        }
+      `,
+      fragmentShader: `
+        uniform vec3 color;
+        uniform float opacity;
+        void main() {
+          float distanceToCenter = length(gl_PointCoord - vec2(0.5));
+          float falloff = 1.0 - smoothstep(0.0, 0.5, distanceToCenter);
+          gl_FragColor = vec4(color, falloff * opacity);
+        }
+      `,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+    const glow = new THREE.Points(geometry, material);
+    this.moveGlowToSelectedLevel(glow);
+    this.group.add(glow);
+    return glow;
+  }
+
   createLevelStars() {
     return CONSTELLATION_POINTS.map((position, index) => {
       const geometry = new THREE.BufferGeometry();
@@ -96,16 +138,19 @@ export class LevelSelection {
 
   updateCursor(event) {
     if (!this.isVisible) {
-      this.domElement.style.cursor = '';
+      this.clearHover();
       return;
     }
     this.updatePointer(event);
     this.raycaster.setFromCamera(this.pointer, this.camera);
-    this.domElement.style.cursor =
-      this.raycaster.intersectObjects(this.levelStars)
-        .some(({ object }) => object.userData.levelIndex <= this.unlockedLevelIndex)
-        ? 'pointer'
-        : '';
+    const hoveredStar = this.raycaster.intersectObjects(this.levelStars)
+      .find(({ object }) => object.userData.levelIndex <= this.unlockedLevelIndex);
+    const hoveredLevelIndex = hoveredStar?.object.userData.levelIndex;
+    if (hoveredLevelIndex !== this.hoveredLevelIndex) {
+      this.hoveredLevelIndex = hoveredLevelIndex;
+      this.moveGlowToSelectedLevel();
+    }
+    this.domElement.style.cursor = hoveredStar ? 'pointer' : '';
   }
 
   selectLevel(event) {
@@ -117,11 +162,35 @@ export class LevelSelection {
       .find(({ object }) => object.userData.levelIndex <= this.unlockedLevelIndex);
     if (!clickedStar) return;
 
+    this.enterLevel(clickedStar.object.userData.levelIndex);
+  }
+
+  enterSelectedLevel() {
+    if (!this.isVisible) return false;
+    return this.enterLevel(
+      this.hoveredLevelIndex ?? this.selectedLevelIndex,
+    );
+  }
+
+  enterLevel(levelIndex) {
+    const selectedStar = this.levelStars[levelIndex];
+    if (!this.isVisible || !selectedStar || levelIndex > this.unlockedLevelIndex) {
+      return false;
+    }
     this.onSelect({
-      levelName: clickedStar.object.userData.levelName,
-      levelIndex: clickedStar.object.userData.levelIndex,
+      levelName: selectedStar.userData.levelName,
+      levelIndex,
     });
     this.hide();
+    return true;
+  }
+
+  clearHover() {
+    if (this.hoveredLevelIndex !== undefined) {
+      this.hoveredLevelIndex = undefined;
+      this.moveGlowToSelectedLevel();
+    }
+    this.domElement.style.cursor = '';
   }
 
   updatePointer(event) {
@@ -131,6 +200,7 @@ export class LevelSelection {
   }
 
   update(delta) {
+    this.updateGlowPulse(delta);
     if (this.drawingLineIndex < 0) return;
 
     this.drawingLineElapsed = Math.min(
@@ -151,6 +221,23 @@ export class LevelSelection {
     if (progress === 1) this.drawingLineIndex = -1;
   }
 
+  updateGlowPulse(delta) {
+    if (!this.isGlowActive) return;
+
+    this.glowElapsed = (this.glowElapsed + delta) % SELECTION_GLOW_PERIOD;
+    const phase = this.glowElapsed / SELECTION_GLOW_PERIOD * Math.PI * 2;
+    const pulse = (Math.sin(phase) + 1) / 2;
+    this.selectionGlow.material.uniforms.opacity.value = 0.2 + pulse * 0.4;
+    this.selectionGlow.material.uniforms.pointSize.value = 64 + pulse * 32;
+  }
+
+  moveGlowToSelectedLevel(glow = this.selectionGlow) {
+    const levelIndex = this.hoveredLevelIndex ?? this.selectedLevelIndex;
+    const position = CONSTELLATION_POINTS[levelIndex];
+    glow.position.copy(position);
+    glow.position.z -= 0.01;
+  }
+
   completeLevel(levelIndex) {
     if (levelIndex !== this.unlockedLevelIndex) return;
 
@@ -164,25 +251,31 @@ export class LevelSelection {
     this.lines.geometry.attributes.position.needsUpdate = true;
     if (this.unlockedLevelIndex < this.levelStars.length - 1) {
       this.unlockedLevelIndex += 1;
+      this.selectedLevelIndex = this.unlockedLevelIndex;
+      this.moveGlowToSelectedLevel();
       this.lines.geometry.setDrawRange(0, this.unlockedLevelIndex * 2);
     } else {
+      this.isGlowActive = false;
+      this.selectionGlow.visible = false;
       this.lines.geometry.setDrawRange(0, this.levelStars.length * 2);
     }
   }
 
   hide() {
     this.isVisible = false;
+    this.clearHover();
     this.scene.remove(this.group);
-    this.domElement.style.cursor = '';
   }
 
   show() {
+    this.clearHover();
     this.isVisible = true;
     this.scene.add(this.group);
   }
 
   dispose() {
     this.domElement.removeEventListener('pointermove', this.handlePointerMove);
+    this.domElement.removeEventListener('pointerleave', this.handlePointerLeave);
     this.domElement.removeEventListener('click', this.handleClick);
     this.group.traverse((object) => {
       if (object.geometry) object.geometry.dispose();

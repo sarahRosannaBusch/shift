@@ -54,9 +54,12 @@ function main() {
       return;
     }
 
-    if (levelSelection.isAnimatingUnlock) {
-      levelSelection.update(timer.getDelta());
+    if (controls.hasEnterRequest()) {
+      controls.clearEnterRequest();
+      if (levelSelection.enterSelectedLevel()) return;
     }
+
+    levelSelection.update(timer.getDelta());
     renderer.render(scene, camera.selectionCamera);
   });
 }
