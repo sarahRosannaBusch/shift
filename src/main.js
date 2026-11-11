@@ -43,17 +43,19 @@ function main() {
     camera.toggleAngledView();
   });
 
-  const clock = new THREE.Clock();
-  renderer.setAnimationLoop(() => {
+  const timer = new THREE.Timer();
+  timer.connect(document);
+  renderer.setAnimationLoop((timestamp) => {
+    timer.update(timestamp);
     if (gameSession.isActive) {
-      const delta = Math.min(clock.getDelta(), 0.1);
+      const delta = Math.min(timer.getDelta(), 0.1);
       if (!gameSession.update(delta)) return;
       renderer.render(scene, camera.update(delta, gameSession.player));
       return;
     }
 
     if (levelSelection.isAnimatingUnlock) {
-      levelSelection.update(clock.getDelta());
+      levelSelection.update(timer.getDelta());
     }
     renderer.render(scene, camera.selectionCamera);
   });
