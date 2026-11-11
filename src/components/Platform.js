@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { addStaticBox } from '../physics.js';
+import { addStaticBox } from '../game/physics.js';
 
 export class Platform {
   constructor({

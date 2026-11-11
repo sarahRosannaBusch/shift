@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
-import { addStaticBox } from '../physics.js';
+import { addStaticBox } from '../game/physics.js';
 
 const BASE_COLLISION_GROUP = 1 << 1;
 const RELEASE_REBOUND = 0.02;
