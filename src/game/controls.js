@@ -1,55 +1,60 @@
-const jumpKeys = new Set(['w', ' ', 'arrowup']);
-const brakeKeys = new Set(['s', 'arrowdown']);
-
 function normalizeKey(key) {
   return key.toLowerCase();
 }
 
 export class GameControls {
-  constructor() {
+  constructor({ isDev = false } = {}) {
+    this.isDev = isDev;
     this.movementKeys = new Set();
     this.jumpRequested = false;
     this.restartRequested = false;
     this.menuRequested = false;
+    this.devViewToggleRequested = false;
 
-    window.addEventListener('keydown', (event) => {
-      const key = normalizeKey(event.key);
+    window.addEventListener('keydown', (event) => this.handleKeyDown(event));
+    window.addEventListener('keyup', (event) => this.handleKeyUp(event));
+    window.addEventListener('blur', () => this.reset());
+  }
 
-      if (
-        key === 'a' || key === 'd' ||
-        key === 'arrowleft' || key === 'arrowright' ||
-        brakeKeys.has(key)
-      ) {
+  handleKeyDown(event) {
+    const key = normalizeKey(event.key);
+
+    switch (key) {
+      case 'a':
+      case 'd':
+      case 'arrowleft':
+      case 'arrowright':
+      case 's':
+      case 'arrowdown':
         event.preventDefault();
         this.movementKeys.add(key);
-      }
-
-      if (jumpKeys.has(key)) {
+        break;
+      case 'w':
+      case ' ':
+      case 'arrowup':
         event.preventDefault();
         if (!event.repeat) this.jumpRequested = true;
-      }
-
-      if (key === 'r') {
+        break;
+      case 'r':
         event.preventDefault();
         if (!event.repeat) this.restartRequested = true;
-      }
-
-      if (key === 't') {
+        break;
+      case 't':
         event.preventDefault();
         if (!event.repeat) this.menuRequested = true;
-      }
-    });
+        break;
+      case 'shift':
+        if (this.isDev && !event.repeat) {
+          this.devViewToggleRequested = true;
+        }
+        break;
+      default:
+        break;
+    }
+  }
 
-    window.addEventListener('keyup', (event) => {
-      this.movementKeys.delete(normalizeKey(event.key));
-    });
-
-    window.addEventListener('blur', () => {
-      this.movementKeys.clear();
-      this.jumpRequested = false;
-      this.restartRequested = false;
-      this.menuRequested = false;
-    });
+  handleKeyUp(event) {
+    this.movementKeys.delete(normalizeKey(event.key));
   }
 
   getDirection() {
@@ -81,10 +86,19 @@ export class GameControls {
     return this.menuRequested;
   }
 
+  hasDevViewToggleRequest() {
+    return this.devViewToggleRequested;
+  }
+
+  clearDevViewToggleRequest() {
+    this.devViewToggleRequested = false;
+  }
+
   reset() {
     this.movementKeys.clear();
     this.jumpRequested = false;
     this.restartRequested = false;
     this.menuRequested = false;
+    this.devViewToggleRequested = false;
   }
 }

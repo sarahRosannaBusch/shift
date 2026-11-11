@@ -25,7 +25,9 @@ corner. Button dimensions and colors are fixed in the `ShiftButton` component.
 Button colors can be overridden with the optional `baseColor` and `plungerColor`
 properties. The plunger is dynamic, moves vertically when pressed, and slightly
 rebounds when released. Once pressed to the bottom, it sets `wasPressed`, which
-triggers the camera's transition to the angled view.
+triggers the camera's transition to the angled view. During development, press
+Shift to toggle the camera view while designing levels; this shortcut is not
+available in production.
 
 ## Production build
 

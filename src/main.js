@@ -15,8 +15,8 @@ function main() {
   container.appendChild(renderer.domElement);
 
   const world = createPhysicsWorld();
-  const controls = new GameControls();
   const camera = new CameraController({ container, renderer });
+  const controls = new GameControls({ isDev: import.meta.env.DEV });
   let levelSelection;
   const gameSession = new GameSession({
     scene,
@@ -38,15 +38,15 @@ function main() {
       gameSession.startLevel(levelName, levelIndex),
   });
 
-  window.addEventListener('keydown', (event) => {
-    if (event.key !== 'Shift' || event.repeat) return;
-    camera.toggleAngledView();
-  });
-
   const timer = new THREE.Timer();
   timer.connect(document);
   renderer.setAnimationLoop((timestamp) => {
     timer.update(timestamp);
+    if (controls.hasDevViewToggleRequest()) {
+      camera.toggleAngledView();
+      controls.clearDevViewToggleRequest();
+    }
+
     if (gameSession.isActive) {
       const delta = Math.min(timer.getDelta(), 0.1);
       if (!gameSession.update(delta)) return;
