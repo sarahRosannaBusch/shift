@@ -29,6 +29,7 @@ export class GameSession {
     this.onShiftView = onShiftView;
     this.level = undefined;
     this.player = undefined;
+    this.isReturning = false;
     this.currentLevelName = undefined;
     this.currentLevelIndex = undefined;
     this.currentLevelOffset = undefined;
@@ -64,6 +65,11 @@ export class GameSession {
     this.accumulator += frameDelta;
 
     while (this.accumulator >= FIXED_TIME_STEP) {
+      if (this.isReturning) {
+        this.world.step(FIXED_TIME_STEP);
+        this.accumulator -= FIXED_TIME_STEP;
+        continue;
+      }
       if (this.handleRestartRequest()) return false;
       if (this.handleMenuRequest()) return false;
 
@@ -107,7 +113,7 @@ export class GameSession {
   handleMenuRequest() {
     if (!this.controls.hasMenuRequest()) return false;
 
-    this.returnToMenu();
+    this.beginReturnToMenu();
     return true;
   }
 
@@ -158,7 +164,7 @@ export class GameSession {
     if (!completed) return false;
 
     this.onLevelComplete(this.currentLevelIndex);
-    this.returnToMenu();
+    this.beginReturnToMenu();
     return true;
   }
 
@@ -183,13 +189,21 @@ export class GameSession {
     }
   }
 
-  returnToMenu() {
+  beginReturnToMenu() {
+    if (this.isReturning) return;
     this.controls.reset();
+    this.isReturning = true;
+  }
+
+  finishReturnToMenu() {
+    if (!this.isReturning) return;
+
     this.level.dispose();
     this.removePlayer();
     this.level = undefined;
     this.currentLevelName = undefined;
     this.currentLevelOffset = undefined;
+    this.isReturning = false;
     this.resetSimulation();
     this.onViewReset();
     this.onReturnToMenu();
@@ -203,7 +217,7 @@ export class GameSession {
 
   removePlayer() {
     this.world.removeBody(this.player.body);
-    this.scene.remove(this.player.mesh);
+    this.player.mesh.removeFromParent();
     this.player.mesh.traverse((object) => {
       if (object.geometry) object.geometry.dispose();
       if (object.material) {

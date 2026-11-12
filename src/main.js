@@ -34,6 +34,7 @@ function main() {
     scene,
     camera: camera.selectionCamera,
     domElement: renderer.domElement,
+    onReturnComplete: () => gameSession.finishReturnToMenu(),
     onSelect: ({ levelName, levelIndex, levelOffset, selectedLevel }) =>
       gameSession.startLevel(levelName, levelIndex, levelOffset, selectedLevel),
   });
@@ -45,6 +46,22 @@ function main() {
     if (controls.hasDevViewToggleRequest()) {
       camera.toggleAngledView();
       controls.clearDevViewToggleRequest();
+    }
+
+    if (gameSession.isReturning && !levelSelection.isTransitioning) {
+      const delta = Math.min(timer.getDelta(), 0.1);
+      camera.setAngledView(false);
+      gameSession.update(delta);
+      const gameCamera = camera.update(delta, gameSession.player);
+      if (camera.viewBlend === 0) {
+        levelSelection.beginReturnTransition(
+          gameSession.player,
+          gameSession.level,
+          gameCamera,
+        );
+      }
+      renderer.render(scene, gameCamera);
+      return;
     }
 
     if (levelSelection.isTransitioning) {
