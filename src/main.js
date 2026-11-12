@@ -34,8 +34,8 @@ function main() {
     scene,
     camera: camera.selectionCamera,
     domElement: renderer.domElement,
-    onSelect: ({ levelName, levelIndex }) =>
-      gameSession.startLevel(levelName, levelIndex),
+    onSelect: ({ levelName, levelIndex, levelOffset, selectedLevel }) =>
+      gameSession.startLevel(levelName, levelIndex, levelOffset, selectedLevel),
   });
 
   const timer = new THREE.Timer();
@@ -45,6 +45,13 @@ function main() {
     if (controls.hasDevViewToggleRequest()) {
       camera.toggleAngledView();
       controls.clearDevViewToggleRequest();
+    }
+
+    if (levelSelection.isTransitioning) {
+      const delta = Math.min(timer.getDelta(), 0.1);
+      levelSelection.update(delta);
+      renderer.render(scene, camera.selectionCamera);
+      return;
     }
 
     if (gameSession.isActive) {

@@ -19,15 +19,18 @@ export class ShiftButton {
     action = 'shift',
     baseColor,
     plungerColor,
+    offset = new THREE.Vector3(),
+    visualOnly = false,
   }) {
     const defaultColors = action === 'complete'
       ? { base: '#45b877', plunger: '#b9f27c' }
       : { base: '#8b7bff', plunger: '#ffb454' };
     baseColor ??= defaultColors.base;
     plungerColor ??= defaultColors.plunger;
-    const z = 0;
-    const centerX = left + BASE_SIZE / 2;
-    const baseTop = bottom + BASE_HEIGHT;
+    const z = offset.z;
+    const centerX = left + BASE_SIZE / 2 + offset.x;
+    const buttonBottom = bottom + offset.y;
+    const baseTop = buttonBottom + BASE_HEIGHT;
 
     this.baseMesh = new THREE.Mesh(
       new THREE.BoxGeometry(BASE_SIZE, BASE_HEIGHT, BASE_SIZE),
@@ -36,15 +39,8 @@ export class ShiftButton {
         roughness: 0.55,
       }),
     );
-    this.baseMesh.position.set(centerX, bottom + BASE_HEIGHT / 2, z);
+    this.baseMesh.position.set(centerX, buttonBottom + BASE_HEIGHT / 2, z);
     scene.add(this.baseMesh);
-    this.baseBody = addStaticBox(
-      world,
-      this.baseMesh.position,
-      this.baseMesh.quaternion,
-      new THREE.Vector3(BASE_SIZE, BASE_HEIGHT, BASE_SIZE),
-    );
-    this.baseBody.collisionFilterGroup = BASE_COLLISION_GROUP;
 
     const plungerY = baseTop + PLUNGER_HEIGHT / 2 - INSERTION;
     this.plungerMesh = new THREE.Mesh(
@@ -53,22 +49,47 @@ export class ShiftButton {
     );
     this.plungerMesh.position.set(centerX, plungerY, z);
     scene.add(this.plungerMesh);
+    this.action = action;
+    if (visualOnly) return;
 
+    this.createPhysics(world);
+  }
+
+  createPhysics(world) {
+    this.baseBody = addStaticBox(
+      world,
+      this.baseMesh.getWorldPosition(new THREE.Vector3()),
+      this.baseMesh.getWorldQuaternion(new THREE.Quaternion()),
+      new THREE.Vector3(BASE_SIZE, BASE_HEIGHT, BASE_SIZE),
+    );
+    this.baseBody.collisionFilterGroup = BASE_COLLISION_GROUP;
+
+    const plungerPosition = this.plungerMesh.getWorldPosition(new THREE.Vector3());
+    const buttonBottom = this.baseMesh.getWorldPosition(new THREE.Vector3()).y -
+      BASE_HEIGHT / 2;
     this.plungerBody = new CANNON.Body({
       mass: 0.2,
-      position: new CANNON.Vec3(centerX, plungerY, z),
+      position: new CANNON.Vec3(
+        plungerPosition.x,
+        plungerPosition.y,
+        plungerPosition.z,
+      ),
       collisionFilterMask: ~BASE_COLLISION_GROUP,
       angularFactor: new CANNON.Vec3(0, 0, 0),
       linearFactor: new CANNON.Vec3(0, 0, 0),
     });
     this.plungerBody.addShape(
-      new CANNON.Cylinder(PLUNGER_RADIUS, PLUNGER_RADIUS, PLUNGER_HEIGHT, 32),
+      new CANNON.Cylinder(
+        PLUNGER_RADIUS,
+        PLUNGER_RADIUS,
+        PLUNGER_HEIGHT,
+        32,
+      ),
     );
     this.plungerBody.linearFactor.y = 1;
     world.addBody(this.plungerBody);
     this.playerOnTop = false;
-    this.action = action;
-    this.returnPosition = plungerY;
+    this.returnPosition = plungerPosition.y;
     this.wasPressed = false;
     this.applyPlungerForces = () => {
       if (this.playerOnTop) {
@@ -91,7 +112,7 @@ export class ShiftButton {
             contact.ni.y < -0.5
       );
       if (this.playerOnTop) {
-        if (this.plungerBody.position.y <= bottom + PLUNGER_HEIGHT / 2 + 0.02) {
+        if (this.plungerBody.position.y <= buttonBottom + PLUNGER_HEIGHT / 2 + 0.02) {
           this.wasPressed = true;
         }
       } else if (this.wasPressed) {

@@ -13,8 +13,10 @@ export class Platform {
     z = 0,
     angle = 0,
     color = '#8b7bff',
+    visualOnly = false,
   }) {
     const size = new THREE.Vector3(length, thickness, width);
+    this.size = size;
     this.mesh = new THREE.Mesh(
       new THREE.BoxGeometry(size.x, size.y, size.z),
       new THREE.MeshStandardMaterial({ color, roughness: 0.55 }),
@@ -26,6 +28,16 @@ export class Platform {
     );
     this.mesh.rotation.z = angle;
     scene.add(this.mesh);
-    this.body = addStaticBox(world, this.mesh.position, this.mesh.quaternion, size);
+    if (visualOnly) return;
+
+    this.createPhysics(world);
+  }
+
+  createPhysics(world) {
+    const position = this.mesh.getWorldPosition(new THREE.Vector3());
+    const rotation = this.mesh.getWorldQuaternion(new THREE.Quaternion());
+    const scale = this.mesh.getWorldScale(new THREE.Vector3());
+    const size = this.size.clone().multiply(scale);
+    this.body = addStaticBox(world, position, rotation, size);
   }
 }

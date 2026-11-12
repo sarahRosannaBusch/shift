@@ -31,6 +31,7 @@ export class GameSession {
     this.player = undefined;
     this.currentLevelName = undefined;
     this.currentLevelIndex = undefined;
+    this.currentLevelOffset = undefined;
     this.resetSimulation();
   }
 
@@ -38,13 +39,18 @@ export class GameSession {
     return Boolean(this.player);
   }
 
-  startLevel(levelName, levelIndex) {
+  startLevel(
+    levelName,
+    levelIndex,
+    levelOffset = new THREE.Vector3(),
+    selectedLevel,
+  ) {
     this.currentLevelName = levelName;
     this.currentLevelIndex = levelIndex;
-    this.level = loadLevel(levelName, {
-      scene: this.scene,
-      world: this.world,
-    });
+    this.currentLevelOffset = levelOffset.clone();
+    this.level = selectedLevel;
+    this.scene.attach(this.level.group);
+    this.level.createPhysics(this.world, this.scene);
     this.player = createPlayer({
       scene: this.scene,
       world: this.world,
@@ -86,6 +92,7 @@ export class GameSession {
     this.level = loadLevel(this.currentLevelName, {
       scene: this.scene,
       world: this.world,
+      offset: this.currentLevelOffset,
     });
     this.player = createPlayer({
       scene: this.scene,
@@ -182,6 +189,7 @@ export class GameSession {
     this.removePlayer();
     this.level = undefined;
     this.currentLevelName = undefined;
+    this.currentLevelOffset = undefined;
     this.resetSimulation();
     this.onViewReset();
     this.onReturnToMenu();

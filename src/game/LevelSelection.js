@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { createLevel } from '../levels/levelLoader.js';
 
 const CONSTELLATION_POINTS = [
   new THREE.Vector3(0, 1.125, 0),
@@ -11,6 +12,11 @@ const CONSTELLATION_POINTS = [
 ];
 const LINE_DRAW_DURATION = 0.6;
 const SELECTION_GLOW_PERIOD = 1.8;
+const LEVEL_SELECTOR_DEPTH = 0.1;
+const LEVEL_SELECTOR_SIZE = 5;
+const LEVEL_APPROACH_DURATION = 2.35;
+const PLAYER_FOCUS_DURATION = 1.8;
+const LEVEL_SELECTOR_BOUNDS = new THREE.Vector3(40, 40.25, 2.75);
 
 export class LevelSelection {
   constructor({ scene, camera, domElement, onSelect }) {
@@ -32,7 +38,6 @@ export class LevelSelection {
     this.selectionGlow = this.createSelectionGlow();
     this.levelStars = this.createLevelStars();
     this.raycaster = new THREE.Raycaster();
-    this.raycaster.params.Points.threshold = 0.2;
     this.pointer = new THREE.Vector2();
 
     this.handlePointerMove = (event) => this.updateCursor(event);
@@ -42,6 +47,10 @@ export class LevelSelection {
     this.domElement.addEventListener('pointerleave', this.handlePointerLeave);
     this.domElement.addEventListener('click', this.handleClick);
     this.scene.add(this.group);
+  }
+
+  get isTransitioning() {
+    return Boolean(this.levelTransition);
   }
 
   createConstellationLines() {
@@ -110,25 +119,68 @@ export class LevelSelection {
     return glow;
   }
 
+  createSelectedLevel(index) {
+    const level = createLevel(`level_${index}`, this.group);
+    const levelGroup = level.group;
+    const completeButton = level.shiftButtons.find(
+      (button) => button.action === 'complete',
+    );
+    if (!completeButton) {
+      level.dispose();
+      throw new Error(`Level ${index} has no complete button`);
+    }
+    const position = CONSTELLATION_POINTS[index];
+    levelGroup.updateWorldMatrix(true, true);
+
+    const bounds = new THREE.Box3().setFromObject(levelGroup);
+    const size = bounds.getSize(new THREE.Vector3());
+    const center = bounds.getCenter(new THREE.Vector3());
+    const viewHeight = (this.camera.top - this.camera.bottom) / this.camera.zoom;
+    const canvasHeight = this.domElement.height || this.domElement.clientHeight;
+    const scale =
+      (LEVEL_SELECTOR_SIZE * viewHeight) /
+      (canvasHeight * Math.max(size.x, size.y));
+    levelGroup.userData.levelName = `level_${index}`;
+    levelGroup.userData.levelIndex = index;
+    levelGroup.userData.selectorCenter = position.clone();
+    levelGroup.userData.selectorCenter.z += LEVEL_SELECTOR_DEPTH;
+    levelGroup.userData.levelOffset = levelGroup.userData.selectorCenter
+      .clone()
+      .sub(center);
+    levelGroup.userData.spawnLocal = level.spawnLocal.clone();
+    levelGroup.userData.selectorScale = scale;
+    levelGroup.scale.setScalar(scale);
+    levelGroup.position.set(
+      position.x - center.x * scale,
+      position.y - center.y * scale,
+      position.z + LEVEL_SELECTOR_DEPTH - center.z * scale,
+    );
+    return { level, levelGroup, completeButton };
+  }
+
   createLevelStars() {
+    const viewHeight = (this.camera.top - this.camera.bottom) / this.camera.zoom;
+    const canvasHeight = this.domElement.height || this.domElement.clientHeight;
+    const selectorScale =
+      (LEVEL_SELECTOR_SIZE * viewHeight) /
+      (canvasHeight * Math.max(LEVEL_SELECTOR_BOUNDS.x, LEVEL_SELECTOR_BOUNDS.y));
+    const levelRadius = LEVEL_SELECTOR_BOUNDS.length() / 2;
     return CONSTELLATION_POINTS.map((position, index) => {
-      const geometry = new THREE.BufferGeometry();
-      geometry.setAttribute(
-        'position',
-        new THREE.Float32BufferAttribute(position.toArray(), 3),
+      const geometry = new THREE.SphereGeometry(
+        levelRadius * selectorScale * 1.5,
+        24,
+        16,
       );
-      const material = new THREE.PointsMaterial({
+      const material = new THREE.MeshBasicMaterial({
         color: '#ffffff',
-        size: 5,
-        sizeAttenuation: false,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 1,
+        depthWrite: false,
       });
-      material.onBeforeCompile = (shader) => {
-        shader.fragmentShader = shader.fragmentShader.replace(
-          'void main() {',
-          'void main() {\n\tif (length(gl_PointCoord - vec2(0.5)) > 0.5) discard;',
-        );
-      };
-      const star = new THREE.Points(geometry, material);
+      const star = new THREE.Mesh(geometry, material);
+      star.position.copy(position);
+      star.position.z += LEVEL_SELECTOR_DEPTH;
       star.userData.levelName = `level_${index}`;
       star.userData.levelIndex = index;
       this.group.add(star);
@@ -177,12 +229,28 @@ export class LevelSelection {
     if (!this.isVisible || !selectedStar || levelIndex > this.unlockedLevelIndex) {
       return false;
     }
-    this.onSelect({
-      levelName: selectedStar.userData.levelName,
-      levelIndex,
-    });
-    this.hide();
+    this.beginLevelTransition(levelIndex);
     return true;
+  }
+
+  beginLevelTransition(levelIndex) {
+    const { level, levelGroup, completeButton } =
+      this.createSelectedLevel(levelIndex);
+    this.isVisible = false;
+    this.selectedLevelIndex = levelIndex;
+    this.selectionGlow.visible = false;
+    this.clearHover();
+    this.levelTransition = {
+      elapsed: 0,
+      levelIndex,
+      selectedLevel: level,
+      levelGroup,
+      completeButton,
+      startCameraPosition: this.camera.position.clone(),
+      playerPosition: levelGroup.userData.spawnLocal.clone()
+        .add(levelGroup.userData.levelOffset),
+      levelStarted: false,
+    };
   }
 
   clearHover() {
@@ -200,6 +268,11 @@ export class LevelSelection {
   }
 
   update(delta) {
+    if (this.levelTransition) {
+      this.updateLevelTransition(delta);
+      return;
+    }
+
     this.updateGlowPulse(delta);
     if (this.drawingLineIndex < 0) return;
 
@@ -219,6 +292,100 @@ export class LevelSelection {
     this.linePositions[endpointOffset + 2] = endpoint.z;
     this.lines.geometry.attributes.position.needsUpdate = true;
     if (progress === 1) this.drawingLineIndex = -1;
+  }
+
+  updateLevelTransition(delta) {
+    const transition = this.levelTransition;
+    const totalDuration = LEVEL_APPROACH_DURATION + PLAYER_FOCUS_DURATION;
+    transition.elapsed = Math.min(
+      transition.elapsed + Math.min(delta, 0.1),
+      totalDuration,
+    );
+    const fadeProgress = THREE.MathUtils.clamp(
+      transition.elapsed / (LEVEL_APPROACH_DURATION * 0.55),
+      0,
+      1,
+    );
+    const starOpacity = 0.01 + 0.99 * (1 - fadeProgress) ** 3;
+    this.levelStars.forEach((star) => {
+      star.material.opacity = starOpacity;
+    });
+
+    const selectorCenter = transition.levelGroup.userData.selectorCenter;
+    const finalGroupScale = 1 / transition.levelGroup.userData.selectorScale;
+    const approachProgress = Math.min(
+      transition.elapsed / LEVEL_APPROACH_DURATION,
+      1,
+    );
+    const easedApproachProgress = approachProgress * approachProgress *
+      (3 - 2 * approachProgress);
+    const groupScale = Math.exp(
+      Math.log(finalGroupScale) * easedApproachProgress,
+    );
+    this.group.scale.setScalar(groupScale);
+    this.group.position.copy(selectorCenter).multiplyScalar(1 - groupScale);
+
+    this.group.updateWorldMatrix(true, true);
+    const completeButtonPosition =
+      transition.completeButton.plungerMesh.getWorldPosition(new THREE.Vector3());
+    const buttonCameraPosition = completeButtonPosition.clone();
+    buttonCameraPosition.z = transition.startCameraPosition.z;
+    const playerCameraPosition = transition.playerPosition.clone().add(
+      new THREE.Vector3(
+        0,
+        0,
+        buttonCameraPosition.z - transition.playerPosition.z,
+      ),
+    );
+
+    if (approachProgress < 1) {
+      this.camera.position.lerpVectors(
+        transition.startCameraPosition,
+        buttonCameraPosition,
+        easedApproachProgress,
+      );
+      this.camera.lookAt(
+        this.camera.position.x,
+        this.camera.position.y,
+        this.camera.position.z - 6,
+      );
+    } else {
+      const focusProgress = THREE.MathUtils.clamp(
+        (transition.elapsed - LEVEL_APPROACH_DURATION) /
+          PLAYER_FOCUS_DURATION,
+        0,
+        1,
+      );
+      const easedFocusProgress = focusProgress * focusProgress *
+        (3 - 2 * focusProgress);
+      this.camera.position.lerpVectors(
+        buttonCameraPosition,
+        playerCameraPosition,
+        easedFocusProgress,
+      );
+      const focusTarget = completeButtonPosition.clone()
+        .lerp(transition.playerPosition, easedFocusProgress);
+      this.camera.lookAt(focusTarget);
+    }
+
+    if (
+      transition.elapsed >= LEVEL_APPROACH_DURATION &&
+      !transition.levelStarted
+    ) {
+      transition.levelStarted = true;
+      this.lines.visible = false;
+      this.selectionGlow.visible = false;
+      this.onSelect({
+        levelName: transition.levelGroup.userData.levelName,
+        levelIndex: transition.levelIndex,
+        levelOffset: transition.levelGroup.userData.levelOffset.clone(),
+        selectedLevel: transition.selectedLevel,
+      });
+    }
+
+    if (transition.elapsed < totalDuration) return;
+
+    this.levelTransition = undefined;
   }
 
   updateGlowPulse(delta) {
@@ -269,6 +436,14 @@ export class LevelSelection {
 
   show() {
     this.clearHover();
+    this.group.position.set(0, 0, 0);
+    this.group.scale.setScalar(1);
+    this.levelStars.forEach((star) => {
+      star.visible = true;
+      star.material.opacity = 1;
+    });
+    this.lines.visible = true;
+    this.selectionGlow.visible = this.isGlowActive;
     this.isVisible = true;
     this.scene.add(this.group);
   }

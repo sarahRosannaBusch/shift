@@ -7,9 +7,9 @@ export const level_0 = {
   platforms: [
     // outer box
     { left: -1, top: 0, length: 40 },
-    { left: -1, top: 10, length: 40 },
-    { left: -1, top: 0, length: 10, angle: Math.PI / 2 },
-    { left: 38.75, top: 0, length: 10, angle: Math.PI / 2 },
+    { left: -1, top: 40, length: 40 },
+    { left: -1, top: 0, length: 40, angle: Math.PI / 2 },
+    { left: 38.75, top: 0, length: 40, angle: Math.PI / 2 },
 
   ],
 };
