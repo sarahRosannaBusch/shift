@@ -12,6 +12,7 @@ const CONSTELLATION_POINTS = [
 ];
 const LINE_DRAW_DURATION = 0.6;
 const SELECTION_GLOW_PERIOD = 1.8;
+const GAME_OVER_PULSE_DURATION = 0.4;
 const LEVEL_SELECTOR_DEPTH = 0.1;
 const LEVEL_SELECTOR_SIZE = 5;
 const LEVEL_APPROACH_DURATION = 2.35;
@@ -32,6 +33,9 @@ export class LevelSelection {
     this.drawingLineElapsed = 0;
     this.glowElapsed = 0;
     this.isGlowActive = true;
+    this.gameOverLevelIndex = undefined;
+    this.gameOverPulseElapsed = 0;
+    this.gameOverConstellationPulseCount = undefined;
     this.isVisible = true;
 
     this.group = new THREE.Group();
@@ -257,6 +261,7 @@ export class LevelSelection {
 
   beginReturnTransition(player, selectedLevel, gameCamera) {
     const playerPosition = player.mesh.getWorldPosition(new THREE.Vector3());
+    this.lines.visible = true;
     this.camera.position.copy(gameCamera.position);
     this.camera.quaternion.copy(gameCamera.quaternion);
     this.camera.updateMatrixWorld();
@@ -320,7 +325,16 @@ export class LevelSelection {
     this.linePositions[endpointOffset + 1] = endpoint.y;
     this.linePositions[endpointOffset + 2] = endpoint.z;
     this.lines.geometry.attributes.position.needsUpdate = true;
-    if (progress === 1) this.drawingLineIndex = -1;
+    if (progress === 1) {
+      const completedLineIndex = this.drawingLineIndex;
+      this.drawingLineIndex = -1;
+      if (this.isGlowActive) {
+        this.moveGlowToSelectedLevel();
+        this.selectionGlow.visible = true;
+      } else if (completedLineIndex === this.levelStars.length - 1) {
+        this.startGameOverAnimation();
+      }
+    }
   }
 
   updateLevelTransition(delta) {
@@ -504,6 +518,53 @@ export class LevelSelection {
   }
 
   updateGlowPulse(delta) {
+    if (this.gameOverLevelIndex !== undefined) {
+      this.gameOverPulseElapsed = Math.min(
+        this.gameOverPulseElapsed + delta,
+        GAME_OVER_PULSE_DURATION,
+      );
+      const phase = this.gameOverPulseElapsed / GAME_OVER_PULSE_DURATION *
+        Math.PI * 2 - Math.PI / 2;
+      const pulse = (Math.sin(phase) + 1) / 2;
+      this.selectionGlow.material.uniforms.opacity.value = 0.2 + pulse * 0.4;
+      this.selectionGlow.material.uniforms.pointSize.value = 64 + pulse * 32;
+
+      if (this.gameOverPulseElapsed === GAME_OVER_PULSE_DURATION) {
+        this.gameOverLevelIndex += 1;
+        if (this.gameOverLevelIndex === this.levelStars.length) {
+          this.startGameOverConstellationGlow();
+          return;
+        }
+        this.gameOverPulseElapsed = 0;
+        this.moveGlowToLevel(this.gameOverLevelIndex);
+      }
+      return;
+    }
+
+    if (this.gameOverConstellationPulseCount !== undefined) {
+      this.gameOverPulseElapsed = Math.min(
+        this.gameOverPulseElapsed + delta,
+        GAME_OVER_PULSE_DURATION,
+      );
+      const phase = this.gameOverPulseElapsed / GAME_OVER_PULSE_DURATION *
+        Math.PI * 2 - Math.PI / 2;
+      const pulse = (Math.sin(phase) + 1) / 2;
+      this.selectionGlow.material.uniforms.opacity.value = 0.2 + pulse * 0.4;
+      this.selectionGlow.material.uniforms.pointSize.value = 64 + pulse * 32;
+
+      if (this.gameOverPulseElapsed === GAME_OVER_PULSE_DURATION) {
+        this.gameOverConstellationPulseCount += 1;
+        if (this.gameOverConstellationPulseCount === 3) {
+          this.gameOverConstellationPulseCount = undefined;
+          this.selectionGlow.material.uniforms.opacity.value = 0.6;
+          this.selectionGlow.material.uniforms.pointSize.value = 96;
+          return;
+        }
+        this.gameOverPulseElapsed = 0;
+      }
+      return;
+    }
+
     if (!this.isGlowActive) return;
 
     this.glowElapsed = (this.glowElapsed + delta) % SELECTION_GLOW_PERIOD;
@@ -514,10 +575,40 @@ export class LevelSelection {
   }
 
   moveGlowToSelectedLevel(glow = this.selectionGlow) {
+    if (!this.isGlowActive) return;
     const levelIndex = this.hoveredLevelIndex ?? this.selectedLevelIndex;
+    if (this.drawingLineIndex >= 0 && levelIndex > this.drawingLineIndex) return;
+    this.moveGlowToLevel(levelIndex, glow);
+  }
+
+  moveGlowToLevel(levelIndex, glow = this.selectionGlow) {
     const position = CONSTELLATION_POINTS[levelIndex];
     glow.position.copy(position);
     glow.position.z -= 0.01;
+  }
+
+  startGameOverAnimation() {
+    this.gameOverLevelIndex = 0;
+    this.gameOverPulseElapsed = 0;
+    this.selectionGlow.visible = true;
+    this.moveGlowToLevel(this.gameOverLevelIndex);
+  }
+
+  startGameOverConstellationGlow() {
+    const positions = CONSTELLATION_POINTS.flatMap((point) => [
+      point.x,
+      point.y,
+      point.z - 0.01,
+    ]);
+    this.selectionGlow.position.set(0, 0, 0);
+    this.selectionGlow.geometry.setAttribute(
+      'position',
+      new THREE.Float32BufferAttribute(positions, 3),
+    );
+    this.selectionGlow.geometry.computeBoundingSphere();
+    this.gameOverLevelIndex = undefined;
+    this.gameOverConstellationPulseCount = 0;
+    this.gameOverPulseElapsed = 0;
   }
 
   completeLevel(levelIndex) {
@@ -531,10 +622,10 @@ export class LevelSelection {
     this.linePositions[endpointOffset + 1] = start.y;
     this.linePositions[endpointOffset + 2] = start.z;
     this.lines.geometry.attributes.position.needsUpdate = true;
+    this.selectionGlow.visible = false;
     if (this.unlockedLevelIndex < this.levelStars.length - 1) {
       this.unlockedLevelIndex += 1;
       this.selectedLevelIndex = this.unlockedLevelIndex;
-      this.moveGlowToSelectedLevel();
       this.lines.geometry.setDrawRange(0, this.unlockedLevelIndex * 2);
     } else {
       this.isGlowActive = false;
@@ -560,7 +651,8 @@ export class LevelSelection {
       star.material.opacity = 1;
     });
     this.lines.visible = true;
-    this.selectionGlow.visible = this.isGlowActive;
+    this.selectionGlow.visible =
+      this.isGlowActive && this.drawingLineIndex < 0;
     this.isVisible = true;
     this.scene.add(this.group);
   }
