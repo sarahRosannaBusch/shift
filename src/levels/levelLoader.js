@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { Platform } from '../components/Platform.js';
 import { ShiftButton } from '../components/ShiftButton.js';
+import { soundfx } from '../game/sound.js';
 import { level_0 } from './level_0.js';
 import { level_1 } from './level_1.js';
 import { level_2 } from './level_2.js';
@@ -58,6 +59,7 @@ export function createLevel(name, scene, offset = new THREE.Vector3()) {
     levelDefinition.spawn.z,
   );
   let physicsWorld;
+  soundfx.tune();
 
   return {
     group: levelGroup,

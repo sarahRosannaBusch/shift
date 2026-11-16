@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 import { createPlayer } from './player.js';
 import { loadLevel } from '../levels/levelLoader.js';
+import { soundfx } from './sound.js';
 
 const FIXED_TIME_STEP = 1 / 60;
 const MOVE_FORCE = 5;
@@ -125,6 +126,7 @@ export class GameSession {
       this.player.body.applyImpulse(
         new CANNON.Vec3(0, JUMP_IMPULSE * this.player.body.mass, 0),
       );
+      soundfx.jump();
       this.isGrounded = false;
       this.coyoteTimeRemaining = 0;
       jumpedThisStep = true;
