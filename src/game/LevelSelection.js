@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { createLevel } from '../levels/levelLoader.js';
+import { soundfx } from './sound.js';
 
 const CONSTELLATION_POINTS = [
   new THREE.Vector3(0, 1.125, 0),
@@ -11,7 +12,7 @@ const CONSTELLATION_POINTS = [
   new THREE.Vector3(1.125, 0, 0),
 ];
 const LINE_DRAW_DURATION = 0.6;
-const SELECTION_GLOW_PERIOD = 1.8;
+const SELECTION_GLOW_PERIOD = 2.0;
 const GAME_OVER_PULSE_DURATION = 0.4;
 const LEVEL_SELECTOR_DEPTH = 0.1;
 const LEVEL_SELECTOR_SIZE = 5;
@@ -212,7 +213,7 @@ export class LevelSelection {
 
   selectLevel(event) {
     if (!this.isVisible) return;
-
+    
     this.updatePointer(event);
     this.raycaster.setFromCamera(this.pointer, this.camera);
     const clickedStar = this.raycaster.intersectObjects(this.levelStars)
@@ -570,6 +571,9 @@ export class LevelSelection {
     this.glowElapsed = (this.glowElapsed + delta) % SELECTION_GLOW_PERIOD;
     const phase = this.glowElapsed / SELECTION_GLOW_PERIOD * Math.PI * 2;
     const pulse = (Math.sin(phase) + 1) / 2;
+    if(this.glowElapsed < 0.01) {
+      soundfx.glow();
+    }
     this.selectionGlow.material.uniforms.opacity.value = 0.2 + pulse * 0.4;
     this.selectionGlow.material.uniforms.pointSize.value = 64 + pulse * 32;
   }
