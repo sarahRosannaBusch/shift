@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { soundfx } from './sound.js';
 
 const SIDE_VIEW = new THREE.Vector3(0, 0, 6);
 const ANGLED_VIEW = new THREE.Vector3(4, 3.5, 6);
@@ -50,6 +51,9 @@ export class CameraController {
   }
 
   setAngledView(isAngledView) {
+    if(this.isAngledView !== isAngledView) {
+      soundfx.shift();
+    }
     this.isAngledView = isAngledView;
   }
 
