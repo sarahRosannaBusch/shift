@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { soundfx } from './sound.js';
 
 const SIDE_VIEW = new THREE.Vector3(0, 0, 6);
-const ANGLED_VIEW = new THREE.Vector3(4, 3.5, 6);
+const ANGLED_VIEW = new THREE.Vector3(1, 1, 6);
 const TRANSITION_DURATION = 2;
 
 export class CameraController {
@@ -31,12 +31,13 @@ export class CameraController {
     const { width, height } = this.container.getBoundingClientRect();
     if (!width || !height) return;
 
+    const camerDistance = 2.5; // 2.5 for real, adjust for testing only
     this.perspectiveCamera.aspect = width / height;
     this.perspectiveCamera.updateProjectionMatrix();
-    this.sideCamera.left = -2.5 * (width / height);
-    this.sideCamera.right = 2.5 * (width / height);
-    this.sideCamera.top = 2.5;
-    this.sideCamera.bottom = -2.5;
+    this.sideCamera.left = -camerDistance * (width / height);
+    this.sideCamera.right = camerDistance * (width / height);
+    this.sideCamera.top = camerDistance;
+    this.sideCamera.bottom = -camerDistance;
     this.sideCamera.updateProjectionMatrix();
     this.selectionCamera.left = this.sideCamera.left;
     this.selectionCamera.right = this.sideCamera.right;

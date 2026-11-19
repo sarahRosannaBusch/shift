@@ -17,9 +17,19 @@ export class Platform {
   }) {
     const size = new THREE.Vector3(length, thickness, width);
     this.size = size;
+    const litMaterial = new THREE.MeshStandardMaterial({ color, roughness: 0.55 });
+    const unlitMaterial = new THREE.MeshBasicMaterial({ color });
+    const materials = [
+      litMaterial, // right
+      litMaterial, // left
+      litMaterial, // top
+      litMaterial, // bottom
+      unlitMaterial, // front
+      litMaterial, // back
+    ]
     this.mesh = new THREE.Mesh(
       new THREE.BoxGeometry(size.x, size.y, size.z),
-      new THREE.MeshStandardMaterial({ color, roughness: 0.55 }),
+      materials,
     );
     this.mesh.position.set(
       left + Math.cos(angle) * length / 2 + Math.sin(angle) * thickness / 2,

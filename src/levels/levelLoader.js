@@ -84,7 +84,9 @@ export function createLevel(name, scene, offset = new THREE.Vector3()) {
         sceneRemove(platform.mesh);
         if (physicsWorld) physicsWorld.removeBody(platform.body);
         platform.mesh.geometry.dispose();
-        platform.mesh.material.dispose();
+        for(let i = 0; i < platform.mesh.material.length; i++) {
+          platform.mesh.material[i].dispose();
+        }
       }
       sceneRemove(background);
       background.geometry.dispose();
@@ -136,10 +138,10 @@ function getLevelPatternTexture() {
     throw new Error('Unable to create level background pattern');
   }
 
-  context.fillStyle = '#19191f';
+  context.fillStyle = '#131313';
   context.fillRect(0, 0, canvas.width, canvas.height);
   context.strokeStyle = '#292830';
-  context.lineWidth = 1;
+  context.lineWidth = 0.2;
   for (let position = 32; position < canvas.width; position += 32) {
     context.beginPath();
     context.moveTo(position, 0);
@@ -151,11 +153,12 @@ function getLevelPatternTexture() {
     context.stroke();
   }
 
+  //dots
   context.fillStyle = '#3a3845';
   for (let y = 0; y <= canvas.height; y += 64) {
     for (let x = 0; x <= canvas.width; x += 64) {
       context.beginPath();
-      context.arc(x, y, 2, 0, Math.PI * 2);
+      context.arc(x, y, 1, 0, Math.PI * 2);
       context.fill();
     }
   }
