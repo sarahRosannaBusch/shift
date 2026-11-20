@@ -1,8 +1,8 @@
 export const level_1 = {
   spawn: { x: 0, y: 0.575, z: 0 },
   shiftButtons: [
-    { left: 20, bottom: 29.25, action: 'shift' },
-    { left: 20, bottom: 9.25, action: 'complete' },
+    { left: 11, bottom: 2.25, action: 'shift' },
+    { left: 36, bottom: 0, action: 'complete' },
   ],
   platforms: [
     // outer box
@@ -12,20 +12,22 @@ export const level_1 = {
     { left: 38.75, top: 0, length: 40, angle: Math.PI / 2 },
 
     // 2d platforms
-    { left: 2, top: 1.25, length: 2 }, 
-    { left: -1, top: 2.25, length: 2 },
-    { left: 2, top: 3.25, length: 2 },
-    { left: -1, top: 4.25, length: 2 },
-    { left: 2, top: 5.25, length: 2 },
-    { left: -1, top: 6.25, length: 2 },
-    { left: 2, top: 7.25, length: 2 },
-    { left: -1, top: 8.25, length: 2 },
-    { left: 2, top: 9.25, length: 20 },
+
+    // walling off complete button
+    { left: 34, top: 0, length: 6, angle: Math.PI / 2 },
+    { left: 34, top: 6, length: 2, width: 0.1, z: -1.24, angle: Math.PI / 2 },
+    { left: 34, top: 8, length: 32, angle: Math.PI / 2 },
+
+    // shift button platform
+    { left: 10, top: 2.25, length: 3 }, 
+
+    { left: 15, top: 0, length: 10.45, angle: Math.PI / 8 },
+    { left: 24.65, top: 4, length: 9.5 },
+
+    { left: 28, top: 5, length: 4 },
+
+    { left: 0.9, top: 6.05, length: 10, angle: -Math.PI / 8 },
 
     // 3d platforms
-    { left: 15, top: 9.25, length: 10 }, // button base
-    { left: 15, top: 9.25, length: 10, angle: Math.PI / 2, color: '#131313' },
-    { left: 25, top: 9.25, length: 10, angle: Math.PI / 2, color: '#131313' },
-    { left: 15, top: 19.25, length: 10, color: '#131313' },
   ],
 };
