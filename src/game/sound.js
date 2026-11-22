@@ -1,7 +1,8 @@
 import { ZZFX, zzfx } from 'zzfx';
 
 let fv = 1; // fx volume
-let mv = 0.1; // music volume
+let mv = 1; // music volume
+let major = true;
 
 export const soundfx = {
   // master volume
@@ -41,12 +42,46 @@ export const soundfx = {
     mv = value;
   },
 
+  get major() {
+    return major;
+  },
+  set major(value) {
+    major = value;
+  },
+
   tune() {
-    let tempo = setInterval(() => {
-      zzfx(...[mv,0,261.6256,.11,.19,.22,,1.8,,,,,,.2,,.1,,.67,.04]); // Music 5
-    }, 1000);
-    setTimeout(() => {
-      clearInterval(tempo);
-    }, 10000);
+    let notes = [65.41, 82.41, 98.00, 130.81, 164.81, 196.00, 261.63, 196.00, 164.81, 130.81, 98.00, 82.41];
+
+    let i = 0, key = 0, ascending = true;
+    this.tempo = setInterval(() => {
+      //console.log(major); // todo: switch to minor with phase shift
+      zzfx(mv,0,notes[i],.05,.47,.44,0,1.3,0,0,0,0,0,0,0,0,0,.56,.04,0,0); // Note
+      i++;
+      if (i >= notes.length) {
+        i = 0;
+        if (ascending && key < 5) {
+          key++;
+          notes = transpose(notes, 1);
+          if (key === 5) {
+            ascending = false;
+          }
+        } else if (!ascending && key > 0) {
+          key--;
+          notes = transpose(notes, -1);
+          if (key === 0) {
+            ascending = true;
+          }
+        }
+      }
+    }, 500);
+
+    function transpose(frequencies, semitones) {
+      const multiplier = Math.pow(2, semitones / 12);
+      return frequencies.map(freq => Number((freq * multiplier).toFixed(2)));
+    }
+  },
+
+  stopTune() {
+    clearInterval(this.tempo);
   }
 };

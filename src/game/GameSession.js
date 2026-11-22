@@ -82,6 +82,7 @@ export class GameSession {
       if (this.level.shiftButtons.some(
         (button) => button.action === 'shift' && button.wasPressed,
       )) {
+        soundfx.major = false;
         this.onShiftView();
       }
       this.updateGroundedState(jumpedThisStep);
@@ -163,8 +164,11 @@ export class GameSession {
     const completed = this.level.shiftButtons.some(
       (button) => button.action === 'complete' && button.wasPressed,
     );
-    if (!completed) return false;
-
+    if(completed) {
+      soundfx.stopTune();
+    } else {
+       return false;
+    }
     this.onLevelComplete(this.currentLevelIndex);
     this.beginReturnToMenu();
     return true;

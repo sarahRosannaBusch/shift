@@ -59,7 +59,7 @@ export function createLevel(name, scene, offset = new THREE.Vector3()) {
     levelDefinition.spawn.z,
   );
   let physicsWorld;
-  //soundfx.tune();
+  soundfx.tune();
 
   return {
     group: levelGroup,
