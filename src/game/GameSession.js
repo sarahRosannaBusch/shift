@@ -10,6 +10,7 @@ const BRAKE_FORCE = 16;
 const MAX_SPEED = 3;
 const JUMP_IMPULSE = 4.5;
 const COYOTE_TIME = 0.25;
+const BUMP_DEBOUNCE_MS = 500;
 
 export class GameSession {
   constructor({
@@ -34,6 +35,7 @@ export class GameSession {
     this.currentLevelName = undefined;
     this.currentLevelIndex = undefined;
     this.currentLevelOffset = undefined;
+    this.bumpDebounceTimeout = undefined;
     this.resetSimulation();
   }
 
@@ -58,6 +60,7 @@ export class GameSession {
       world: this.world,
       position: this.level.spawn,
     });
+    this.player.body.addEventListener('collide', this.handlePlayerCollision);
   }
 
   update(delta) {
@@ -106,6 +109,7 @@ export class GameSession {
       world: this.world,
       position: this.level.spawn,
     });
+    this.player.body.addEventListener('collide', this.handlePlayerCollision);
     this.resetSimulation();
     this.onViewReset();
     return true;
@@ -174,6 +178,15 @@ export class GameSession {
     return true;
   }
 
+  handlePlayerCollision = () => {
+    if (this.bumpDebounceTimeout !== undefined) return;
+
+    soundfx.play('bump');
+    this.bumpDebounceTimeout = setTimeout(() => {
+      this.bumpDebounceTimeout = undefined;
+    }, BUMP_DEBOUNCE_MS);
+  };
+
   updateGroundedState(jumpedThisStep) {
     this.player.body.velocity.x = THREE.MathUtils.clamp(
       this.player.body.velocity.x,
@@ -222,6 +235,9 @@ export class GameSession {
   }
 
   removePlayer() {
+    this.player.body.removeEventListener('collide', this.handlePlayerCollision);
+    clearTimeout(this.bumpDebounceTimeout);
+    this.bumpDebounceTimeout = undefined;
     this.world.removeBody(this.player.body);
     this.player.mesh.removeFromParent();
     this.player.mesh.traverse((object) => {
