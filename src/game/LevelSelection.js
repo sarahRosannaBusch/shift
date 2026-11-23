@@ -573,7 +573,7 @@ export class LevelSelection {
     const phase = this.glowElapsed / SELECTION_GLOW_PERIOD * Math.PI * 2;
     const pulse = (Math.sin(phase) + 1) / 2;
     if(this.glowElapsed < 0.01) {
-      soundfx.glow();
+      soundfx.play('glow');
     }
     this.selectionGlow.material.uniforms.opacity.value = 0.2 + pulse * 0.4;
     this.selectionGlow.material.uniforms.pointSize.value = 64 + pulse * 32;

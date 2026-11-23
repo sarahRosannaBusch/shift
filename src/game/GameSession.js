@@ -82,7 +82,6 @@ export class GameSession {
       if (this.level.shiftButtons.some(
         (button) => button.action === 'shift' && button.wasPressed,
       )) {
-        soundfx.major = false;
         this.onShiftView();
       }
       this.updateGroundedState(jumpedThisStep);
@@ -127,7 +126,7 @@ export class GameSession {
       this.player.body.applyImpulse(
         new CANNON.Vec3(0, JUMP_IMPULSE * this.player.body.mass, 0),
       );
-      soundfx.jump();
+      soundfx.play('jump');
       this.isGrounded = false;
       this.coyoteTimeRemaining = 0;
       jumpedThisStep = true;
@@ -165,6 +164,7 @@ export class GameSession {
       (button) => button.action === 'complete' && button.wasPressed,
     );
     if(completed) {
+      soundfx.play('powerup');
       soundfx.stopTune();
     } else {
        return false;

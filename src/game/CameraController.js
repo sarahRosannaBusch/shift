@@ -53,13 +53,15 @@ export class CameraController {
 
   setAngledView(isAngledView) {
     if(this.isAngledView !== isAngledView) {
-      soundfx.shift();
+      soundfx.play('shift');
     }
+    soundfx.major = !this.isAngledView;
     this.isAngledView = isAngledView;
   }
 
   resetView() {
     this.isAngledView = false;
+    soundfx.major = true;
     this.viewBlend = 0;
     this.transitionStart = 0;
     this.transitionTarget = 0;

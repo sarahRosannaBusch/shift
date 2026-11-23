@@ -59,7 +59,9 @@ export function createLevel(name, scene, offset = new THREE.Vector3()) {
     levelDefinition.spawn.z,
   );
   let physicsWorld;
-  soundfx.tune();
+
+  let lvlIdx = JSON.parse(name.at(-1));
+  soundfx.play('tune', lvlIdx);
 
   return {
     group: levelGroup,
@@ -80,6 +82,7 @@ export function createLevel(name, scene, offset = new THREE.Vector3()) {
       physicsWorld = world;
     },
     dispose() {
+      soundfx.stopTune();
       for (const platform of platforms) {
         sceneRemove(platform.mesh);
         if (physicsWorld) physicsWorld.removeBody(platform.body);

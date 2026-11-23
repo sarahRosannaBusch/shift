@@ -21,6 +21,13 @@ export const soundfx = {
     fv = value;
   },
 
+  play(soundName, lvlIdx) {
+    this.levelIdx = lvlIdx;
+    if (navigator.userActivation.hasBeenActive && this[soundName]) {
+      this[soundName]();
+    }
+  },
+
   glow() {
     zzfx(fv,0,262.63,.28,.1,.9,1,5.9,0,0,0,0,0,.1,0,.1,.1,.35,.12,0,-1017); // Glow
   },
@@ -32,6 +39,9 @@ export const soundfx = {
   },
   shift() {
     zzfx(10*fv,.05,233,.5,.5,1,1,3.7,0,-381,0,0,0,0,0,.2,0,.55,.5,0,-609); // Shift
+  },
+  powerup() {
+    zzfx(fv,.05,303,.08,.15,.15,2,1,-7,0,-63,.09,0,0,0,0,.18,.54,.2,0,-754); // Powerup 15 - Mutation 2  
   },
 
   // Music
@@ -50,30 +60,35 @@ export const soundfx = {
   },
 
   tune() {
-    let notes = [65.41, 82.41, 98.00, 130.81, 164.81, 196.00, 261.63, 196.00, 164.81, 130.81, 98.00, 82.41];
+    const major = [65.41, 82.41, 98.00, 130.81, 164.81, 196.00, 261.63, 196.00, 164.81, 130.81, 98.00, 82.41];
+    const minor = [65.41, 77.78, 98.00, 146.83, 155.56, 196.00, 293.66, 196.00, 155.56, 146.83, 98.00, 77.78];
 
     let i = 0, key = 0, ascending = true;
+
+    this.stopTune(); // just in case
     this.tempo = setInterval(() => {
-      //console.log(major); // todo: switch to minor with phase shift
+      const baseNotes = this.major ? major : minor;
+      const notes = transpose(baseNotes, key);
+      //console.log(this.major);
+
       zzfx(mv,0,notes[i],.05,.47,.44,0,1.3,0,0,0,0,0,0,0,0,0,.56,.04,0,0); // Note
+      
       i++;
       if (i >= notes.length) {
         i = 0;
-        if (ascending && key < 5) {
+        if (ascending && key < 12) {
           key++;
-          notes = transpose(notes, 1);
-          if (key === 5) {
+          if (key === 12) {
             ascending = false;
           }
         } else if (!ascending && key > 0) {
           key--;
-          notes = transpose(notes, -1);
           if (key === 0) {
             ascending = true;
           }
         }
       }
-    }, 500);
+    }, 400 - this.levelIdx * 20);
 
     function transpose(frequencies, semitones) {
       const multiplier = Math.pow(2, semitones / 12);
@@ -83,5 +98,6 @@ export const soundfx = {
 
   stopTune() {
     clearInterval(this.tempo);
+    this.tempo = null;
   }
 };
