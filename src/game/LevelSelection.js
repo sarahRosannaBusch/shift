@@ -126,7 +126,7 @@ export class LevelSelection {
   }
 
   createSelectedLevel(index) {
-    //const level = createLevel(`level_${1}`, this.group); // for testing
+    //const level = createLevel(`level_${2}`, this.group); // for testing
     const level = createLevel(`level_${index}`, this.group); //for real
     const levelGroup = level.group;
     const completeButton = level.shiftButtons.find(
