@@ -23,7 +23,7 @@ export class ShiftButton {
     visualOnly = false,
   }) {
     const defaultColors = action === 'complete'
-      ? { base: '#45b877', plunger: '#b9f27c' }
+      ? { base: '#8b7bff', plunger: '#b9f27c' }
       : { base: '#8b7bff', plunger: '#ffb454' };
     baseColor ??= defaultColors.base;
     plungerColor ??= defaultColors.plunger;

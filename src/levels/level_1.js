@@ -36,6 +36,5 @@ export const level_1 = {
 
     // 3d platform
     { left: 30.5, top: 7.25, length: 3.5, color: '#131313' },
-    { left: 35.5, top: 2.25, length: 2, color: '#131313' },
   ],
 };
