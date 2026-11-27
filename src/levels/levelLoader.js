@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { Platform } from '../components/Platform.js';
+import { Placard } from '../components/Placard.js';
 import { ShiftButton } from '../components/ShiftButton.js';
 import { soundfx } from '../game/sound.js';
 import { level_0 } from './level_0.js';
@@ -49,6 +50,7 @@ export function createLevel(name, scene, offset = new THREE.Vector3()) {
 
   const background = createLevelBackground(levelGroup);
   const platforms = createComponents(Platform, levelDefinition.platforms);
+  const placards = createComponents(Placard, levelDefinition.placards ?? []);
   const shiftButtons = createComponents(
     ShiftButton,
     levelDefinition.shiftButtons,
@@ -90,6 +92,12 @@ export function createLevel(name, scene, offset = new THREE.Vector3()) {
         for(let i = 0; i < platform.mesh.material.length; i++) {
           platform.mesh.material[i].dispose();
         }
+      }
+      for (const placard of placards) {
+        sceneRemove(placard.mesh);
+        placard.mesh.geometry.dispose();
+        placard.mesh.material.dispose();
+        placard.texture.dispose();
       }
       sceneRemove(background);
       background.geometry.dispose();
